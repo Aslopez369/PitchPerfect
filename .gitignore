@@ -1,0 +1,66 @@
+## .NET / Visual Studio / WPF (PitchPerfect)
+## Build results
+bin/
+obj/
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio / Rider user files
+*.user
+*.userosscache
+*.suo
+*.userprefs
+*.sln.docstates
+.vs/
+
+# Rider
+.idea/
+
+# Build artifacts (NuGet)
+*.nupkg
+*.snupkg
+project.lock.json
+project.assets.json
+
+# Choco
+*.nuspec
+
+# Visual Studio profiler
+*.psess
+*.vsp
+*.vspx
+*.sap
+
+# Click-Once
+publish/
+
+# Publish folders
+[Pp]ublish/
+
+# Windows Store app build outputs
+AppPackages/
+BundleArtifacts/
+Package.StoreAssociation.xml
+
+# NuGet
+nuget-packages/
+
+# MFractors
+.mfractor/
+
+# Build config (may contain secrets)
+appsettings.*.json
+secrets.json
+*.secret
+
+# Tooling / internal
+.workbuddy/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/

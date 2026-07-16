@@ -1,0 +1,54 @@
+<Application x:Class="PitchPerfect.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="clr-namespace:PitchPerfect.Converters"
+             >
+    <Application.Resources>
+        <!-- Value Converters -->
+        <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
+        <conv:InverseBoolToVisibilityConverter x:Key="InverseBoolToVis"/>
+        <conv:ModeToVisibilityConverter x:Key="ModeToVisConverter"/>
+        <conv:BoolToColorConverter x:Key="BoolToColorConverter"/>
+        <conv:BoolToProcessingColorConverter x:Key="BoolToProcessingColorConverter"/>
+        <conv:BoolToProcessingTextConverter x:Key="BoolToProcessingTextConverter"/>
+
+        <!-- Styles -->
+        <Style x:Key="MainTitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#FF1A73E8"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+        <Style x:Key="SectionHeader" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,8,0,4"/>
+            <Setter Property="Foreground" Value="#FF333333"/>
+        </Style>
+        <Style x:Key="StatusBar" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#FF666666"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="8,0"/>
+        </Style>
+        <Style x:Key="ActionButton" TargetType="Button">
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="4,0"/>
+        </Style>
+        <Style x:Key="WarningText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#FFD32F2F"/>
+            <Setter Property="Margin" Value="0,4,0,0"/>
+        </Style>
+        <Style x:Key="SuccessText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#FF388E3C"/>
+            <Setter Property="Margin" Value="0,4,0,0"/>
+        </Style>
+    </Application.Resources>
+</Application>
