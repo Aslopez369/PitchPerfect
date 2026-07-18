@@ -37,6 +37,9 @@ publish/
 # Publish folders
 [Pp]ublish/
 
+# Local packaging output (self-contained publish / dist build)
+dist/
+
 # Windows Store app build outputs
 AppPackages/
 BundleArtifacts/

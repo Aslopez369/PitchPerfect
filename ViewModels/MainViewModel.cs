@@ -447,7 +447,7 @@ public partial class MainViewModel : ObservableObject
     /// </summary>
     private static void Dispatch(Action action)
     {
-        var dispatcher = Application.Current?.Dispatcher;
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
         if (dispatcher != null && !dispatcher.CheckAccess())
         {
             dispatcher.Invoke(action);
