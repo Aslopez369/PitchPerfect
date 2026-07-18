@@ -72,7 +72,7 @@ public partial class App : System.Windows.Application
         _trayIcon = File.Exists(iconPath)
             ? new System.Drawing.Icon(iconPath)
             : System.Drawing.Icon.ExtractAssociatedIcon(
-                System.Reflection.Assembly.GetExecutingAssembly().Location);
+                Environment.ProcessPath!);
 
         // Defensive: without an icon there is no tray presence; the app still runs.
         if (_trayIcon is null)
