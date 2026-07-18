@@ -74,8 +74,8 @@ public class BoolToColorConverter : IValueConverter
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
         return (value is bool b && b)
-            ? new SolidColorBrush(Color.FromRgb(0x38, 0x8E, 0x3C))
-            : new SolidColorBrush(Color.FromRgb(0xD3, 0x2F, 0x2F));
+            ? new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x38, 0x8E, 0x3C))
+            : new SolidColorBrush(System.Windows.Media.Color.FromRgb(0xD3, 0x2F, 0x2F));
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
@@ -93,8 +93,8 @@ public class BoolToProcessingColorConverter : IValueConverter
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
         return (value is bool b && b)
-            ? new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50))
-            : new SolidColorBrush(Color.FromRgb(0xBD, 0xBD, 0xBD));
+            ? new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x4C, 0xAF, 0x50))
+            : new SolidColorBrush(System.Windows.Media.Color.FromRgb(0xBD, 0xBD, 0xBD));
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
