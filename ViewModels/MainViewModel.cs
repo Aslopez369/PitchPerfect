@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
@@ -38,6 +39,8 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private double _latencyMs = 0;
     [ObservableProperty] private string _currentDeviceInfo = "Unknown";
     [ObservableProperty] private bool _isBusy = false;
+    [ObservableProperty] private bool _vocalRemovalEnabled = false;
+    [ObservableProperty] private bool _vocalRemovalApplicable = true;
 
     /// <summary>
     /// Gets a value indicating whether global mode is selected.
@@ -88,6 +91,7 @@ public partial class MainViewModel : ObservableObject
         _processingService.StatusChanged += OnProcessingStatusChanged;
         _processingService.ErrorOccurred += OnProcessingErrorOccurred;
         _processingService.LatencyUpdated += OnProcessingLatencyUpdated;
+        _processingService.PropertyChanged += OnProcessingServicePropertyChanged;
 
         // Initialize VB-Cable status
         UpdateVBCableStatus();
@@ -216,6 +220,46 @@ public partial class MainViewModel : ObservableObject
         {
             _processingService.SetPitch(value);
         }
+    }
+
+    #endregion
+
+    #region Vocal Removal
+
+    /// <summary>
+    /// Determines whether the ToggleVocalRemoval command can execute.
+    /// Vocal removal via (L−R) cancellation only makes sense (and is safe) for
+    /// stereo capture sources; it is disabled for mono sources.
+    /// </summary>
+    private bool CanToggleVocalRemoval => VocalRemovalApplicable;
+
+    /// <summary>
+    /// Toggles the vocal-removal (instrumental-only / karaoke) feature on or off.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanToggleVocalRemoval))]
+    private void ToggleVocalRemoval()
+    {
+        VocalRemovalEnabled = !VocalRemovalEnabled;
+    }
+
+    /// <summary>
+    /// Called when VocalRemovalEnabled changes. Forwards the preference to the
+    /// audio processing service, which relays it to the live pipeline.
+    /// </summary>
+    partial void OnVocalRemovalEnabledChanged(bool value)
+    {
+        _processingService.VocalRemovalEnabled = value;
+        UpdateCommandStates();
+    }
+
+    /// <summary>
+    /// Called when VocalRemovalApplicable changes (e.g. a mono source is detected
+    /// at runtime). Refreshes the toggle command's executability so the UI switch
+    /// enables/disables accordingly.
+    /// </summary>
+    partial void OnVocalRemovalApplicableChanged(bool value)
+    {
+        ToggleVocalRemovalCommand.NotifyCanExecuteChanged();
     }
 
     #endregion
@@ -412,6 +456,27 @@ public partial class MainViewModel : ObservableObject
 
     #endregion
 
+    #region Service Property Sync
+
+    /// <summary>
+    /// Mirrors vocal-removal state changes pushed from the processing service
+    /// (e.g. auto-disable + uncheck on a mono capture source) back into the view
+    /// model so the UI stays in sync. Marshals to the UI thread.
+    /// </summary>
+    private void OnProcessingServicePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(AudioProcessingService.VocalRemovalEnabled))
+        {
+            Dispatch(() => VocalRemovalEnabled = _processingService.VocalRemovalEnabled);
+        }
+        else if (e.PropertyName == nameof(AudioProcessingService.VocalRemovalApplicable))
+        {
+            Dispatch(() => VocalRemovalApplicable = _processingService.VocalRemovalApplicable);
+        }
+    }
+
+    #endregion
+
     #region Helper Methods
 
     /// <summary>
@@ -440,6 +505,7 @@ public partial class MainViewModel : ObservableObject
         StartGlobalCommand.NotifyCanExecuteChanged();
         StopGlobalCommand.NotifyCanExecuteChanged();
         RefreshSessionsCommand.NotifyCanExecuteChanged();
+        ToggleVocalRemovalCommand.NotifyCanExecuteChanged();
     }
 
     /// <summary>

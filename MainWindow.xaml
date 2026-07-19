@@ -206,6 +206,19 @@
                                    HorizontalAlignment="Right"/>
                     </Grid>
 
+                    <!-- Vocal Removal (Karaoke) Toggle -->
+                    <CheckBox Content="消除人声（仅伴奏）"
+                              FontSize="14"
+                              Foreground="#FFCDD6F4"
+                              HorizontalAlignment="Center"
+                              Margin="0,12,0,0"
+                              IsChecked="{Binding VocalRemovalEnabled, Mode=OneWay}"
+                              Command="{Binding ToggleVocalRemovalCommand}"
+                              IsEnabled="{Binding VocalRemovalApplicable}"
+                              Cursor="Hand"
+                              ToolTipService.ShowOnDisabled="True"
+                              ToolTip="开启后仅保留伴奏（消除居中人声）。需要立体声音源；单声道时将自动禁用。"/>
+
                     <!-- Start/Stop Buttons -->
                     <StackPanel Orientation="Horizontal"
                                 HorizontalAlignment="Center"

@@ -109,7 +109,9 @@ public partial class App : System.Windows.Application
             if (e.PropertyName is nameof(MainViewModel.IsGlobalProcessing)
                 or nameof(MainViewModel.GlobalPitchSemiTones)
                 or nameof(MainViewModel.IsVBcableInstalled)
-                or nameof(MainViewModel.CurrentMode))
+                or nameof(MainViewModel.CurrentMode)
+                or nameof(MainViewModel.VocalRemovalEnabled)
+                or nameof(MainViewModel.VocalRemovalApplicable))
             {
                 _trayService.UpdateTooltip(controller.GetTooltip());
             }

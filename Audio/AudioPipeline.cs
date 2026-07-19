@@ -31,6 +31,10 @@ public sealed class AudioPipeline : IDisposable
     private long _totalBytesCaptured;
     private readonly Stopwatch _stopwatch = new Stopwatch();
 
+    // Vocal-removal (karaoke) stage state
+    private volatile bool _vocalRemovalEnabled;
+    private float[] _vocalRemovalScratch = Array.Empty<float>();
+
     /// <summary>
     /// Gets a value indicating whether the pipeline is currently running.
     /// </summary>
@@ -59,6 +63,17 @@ public sealed class AudioPipeline : IDisposable
                 _processor.PitchSemiTones = value;
             }
         }
+    }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether vocal removal (karaoke / (L−R) phase
+    /// cancellation) is applied to the processed output, AFTER pitch shifting.
+    /// Only effective on stereo sources; ignored otherwise.
+    /// </summary>
+    public bool VocalRemovalEnabled
+    {
+        get => _vocalRemovalEnabled;
+        set => _vocalRemovalEnabled = value;
     }
 
     /// <summary>
@@ -169,6 +184,11 @@ public sealed class AudioPipeline : IDisposable
                 {
                     _processor.Flush((data, length) =>
                     {
+                        if (_vocalRemovalEnabled && length > 0 && _captureFormat != null)
+                        {
+                            // Flushed samples are always emitted in the capture format.
+                            ApplyVocalRemoval(data, length, _captureFormat);
+                        }
                         _buffer.AddSamples(data, 0, length);
                     });
                 }
@@ -259,15 +279,21 @@ public sealed class AudioPipeline : IDisposable
         {
             _totalBytesCaptured += e.BytesRecorded;
 
-            // If using a resampler, we need to convert the captured data to the output format
-            if (_useResampler && _outputFormat != null && _captureFormat != null &&
-                !FormatsMatch(_captureFormat, _outputFormat))
+            bool needResample = _useResampler && _outputFormat != null && _captureFormat != null &&
+                                !FormatsMatch(_captureFormat, _outputFormat);
+
+            if (needResample)
             {
                 // Process through SoundTouch in capture format, then convert output to target format
                 _processor.ProcessBuffer(e.Buffer, e.BytesRecorded, (outputData, outputLength) =>
                 {
                     byte[] finalOutput = ConvertFormat(
                         outputData, outputLength, _captureFormat!, _outputFormat!);
+                    if (_vocalRemovalEnabled && finalOutput.Length > 0)
+                    {
+                        // Vocal removal runs AFTER pitch shifting, on the output format.
+                        ApplyVocalRemoval(finalOutput, finalOutput.Length, _outputFormat!);
+                    }
                     _buffer.AddSamples(finalOutput, 0, finalOutput.Length);
                 });
             }
@@ -276,6 +302,11 @@ public sealed class AudioPipeline : IDisposable
                 // Same format — process directly
                 _processor.ProcessBuffer(e.Buffer, e.BytesRecorded, (outputData, outputLength) =>
                 {
+                    if (_vocalRemovalEnabled && outputLength > 0)
+                    {
+                        // Vocal removal runs AFTER pitch shifting, on the capture format.
+                        ApplyVocalRemoval(outputData, outputLength, _captureFormat!);
+                    }
                     _buffer.AddSamples(outputData, 0, outputLength);
                 });
             }
@@ -308,6 +339,31 @@ public sealed class AudioPipeline : IDisposable
             OnStatusChanged("Capture stopped unexpectedly. Pipeline will stop.");
             Stop();
         }
+    }
+
+    /// <summary>
+    /// Applies the vocal-removal (L−R phase cancellation) stage to a raw byte
+    /// buffer in place. The samples are converted to the float domain using the
+    /// supplied format, the centered (mono) component is cancelled, and the
+    /// result is written back as bytes. No-op for non-stereo formats (the (L−R)
+    /// method only makes sense for stereo sources).
+    /// </summary>
+    private void ApplyVocalRemoval(byte[] data, int length, WaveFormat format)
+    {
+        if (format.Channels != 2) return;
+
+        int bytesPerSample = format.BitsPerSample / 8;
+        if (bytesPerSample <= 0 || length < bytesPerSample * 2) return;
+
+        int sampleCount = length / bytesPerSample;
+        if (_vocalRemovalScratch.Length < sampleCount)
+        {
+            _vocalRemovalScratch = new float[sampleCount];
+        }
+
+        ConvertToFloat(data, length, format, _vocalRemovalScratch);
+        VocalRemovalStage.Process(_vocalRemovalScratch, format.Channels);
+        ConvertFromFloat(_vocalRemovalScratch, sampleCount, format, data);
     }
 
     private static bool FormatsMatch(WaveFormat a, WaveFormat b)

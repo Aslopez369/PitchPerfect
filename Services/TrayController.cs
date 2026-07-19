@@ -107,6 +107,13 @@ public sealed class TrayController
             label: $"音调 (Pitch) — {_viewModel.GlobalPitchDisplay}",
             children: pitchChildren));
 
+        // --- Vocal removal (karaoke) toggle ---
+        items.Add(new TrayMenuItem(
+            label: "🎤 消除人声（仅伴奏）",
+            action: TrayMenuAction.ToggleVocalRemoval,
+            isEnabled: _viewModel.VocalRemovalApplicable,
+            isChecked: _viewModel.VocalRemovalEnabled));
+
         // --- Visual separator before window/exit items ---
         items.Add(TrayMenuItem.Separator);
 
@@ -147,6 +154,9 @@ public sealed class TrayController
             case TrayMenuAction.SetPitch:
                 if (pitchValue.HasValue) SetPitch(pitchValue.Value);
                 break;
+            case TrayMenuAction.ToggleVocalRemoval:
+                ToggleVocalRemoval();
+                break;
             case TrayMenuAction.Separator:
             case TrayMenuAction.None:
                 break;
@@ -161,9 +171,16 @@ public sealed class TrayController
     /// <returns>The tooltip text for the notification-area icon.</returns>
     public string GetTooltip()
     {
-        return _viewModel.IsGlobalProcessing
+        var baseText = _viewModel.IsGlobalProcessing
             ? $"PitchPerfect — 运行中 · {_viewModel.GlobalPitchDisplay}"
             : "PitchPerfect — 全局变调: 关";
+
+        if (_viewModel.VocalRemovalEnabled)
+        {
+            baseText += " · 消除人声";
+        }
+
+        return baseText;
     }
 
     /// <summary>
@@ -200,6 +217,16 @@ public sealed class TrayController
     {
         var clamped = Math.Clamp(value, -12f, 12f);
         _viewModel.GlobalPitchSemiTones = clamped;
+    }
+
+    /// <summary>
+    /// Toggles the vocal-removal (instrumental-only) feature through the view model.
+    /// No-ops when the current capture source is not applicable (mono).
+    /// </summary>
+    private void ToggleVocalRemoval()
+    {
+        if (!_viewModel.VocalRemovalApplicable) return;
+        _viewModel.VocalRemovalEnabled = !_viewModel.VocalRemovalEnabled;
     }
 }
 
@@ -292,6 +319,9 @@ public enum TrayMenuAction
 
     /// <summary>Set the global pitch to the value carried by the item.</summary>
     SetPitch,
+
+    /// <summary>Toggle vocal removal (instrumental-only / karaoke mode).</summary>
+    ToggleVocalRemoval,
 
     /// <summary>Visual separator (no behavior).</summary>
     Separator,
