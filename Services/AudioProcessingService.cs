@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using System.Timers;
@@ -15,7 +16,7 @@ namespace PitchPerfect.Services;
 /// Coordinates between VB-Cable detection, device routing (IPolicyConfig),
 /// and the real-time audio pipeline (capture → SoundTouch → output).
 /// </summary>
-public sealed class AudioProcessingService : IDisposable
+public sealed class AudioProcessingService : IDisposable, INotifyPropertyChanged
 {
     private readonly PolicyConfigService _policyConfigService;
     private AudioPipeline? _pipeline;
@@ -34,6 +35,10 @@ public sealed class AudioProcessingService : IDisposable
     private bool _isProcessing;
     private ProcessingMode _currentMode = ProcessingMode.Global;
     private float _currentPitch = 0f;
+
+    // Vocal removal (karaoke) state
+    private bool _vocalRemovalEnabled;
+    private bool _vocalRemovalApplicable = true;
 
     // Latency monitoring timer
     private readonly System.Timers.Timer _latencyTimer;
@@ -72,6 +77,43 @@ public sealed class AudioProcessingService : IDisposable
     public double LatencyMs => _pipeline?.LatencyMs ?? 0;
 
     /// <summary>
+    /// Gets or sets a value indicating whether vocal removal (instrumental-only /
+    /// karaoke mode) is requested. Forwarded to the active pipeline when present.
+    /// </summary>
+    public bool VocalRemovalEnabled
+    {
+        get => _vocalRemovalEnabled;
+        set
+        {
+            // Normal setter path: store and forward only. The PropertyChanged event
+            // is raised solely when the service *forces* the value off (mono source)
+            // so the view model can echo the unchecked state without an echo loop.
+            _vocalRemovalEnabled = value;
+            if (_pipeline != null)
+            {
+                _pipeline.VocalRemovalEnabled = value;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets a value indicating whether vocal removal can actually be applied to the
+    /// current capture source. It is <c>false</c> for mono sources, where the (L−R)
+    /// technique would silence the entire signal. Reset to <c>true</c> when processing
+    /// stops so the next run re-evaluates the source at runtime.
+    /// </summary>
+    public bool VocalRemovalApplicable
+    {
+        get => _vocalRemovalApplicable;
+        private set
+        {
+            if (_vocalRemovalApplicable == value) return;
+            _vocalRemovalApplicable = value;
+            OnPropertyChanged(nameof(VocalRemovalApplicable));
+        }
+    }
+
+    /// <summary>
     /// Gets the VB-Cable installation status message.
     /// </summary>
     public string VBCableStatus => VBCableDetector.Detect().StatusMessage;
@@ -100,6 +142,14 @@ public sealed class AudioProcessingService : IDisposable
     /// Raised when the latency value updates.
     /// </summary>
     public event EventHandler<double>? LatencyUpdated;
+
+    /// <summary>
+    /// Raised when a view-model-relevant property changes (e.g. vocal-removal applicability).
+    /// </summary>
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    private void OnPropertyChanged(string propertyName) =>
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AudioProcessingService"/> class.
@@ -173,6 +223,11 @@ public sealed class AudioProcessingService : IDisposable
             await Task.Delay(200);
 
             _pipeline.Start(_vbCableOutputDevice!, _outputDevice!, _currentPitch);
+
+            // Forward the vocal-removal preference into the freshly created pipeline,
+            // then validate it against the actual capture source (stereo required).
+            _pipeline.VocalRemovalEnabled = _vocalRemovalEnabled;
+            EvaluateVocalRemovalApplicability();
 
             _isProcessing = true;
             _latencyTimer.Enabled = true;
@@ -278,6 +333,9 @@ public sealed class AudioProcessingService : IDisposable
 
             _pipeline.Start(_vbCableOutputDevice!, _outputDevice!, _currentPitch);
 
+            _pipeline.VocalRemovalEnabled = _vocalRemovalEnabled;
+            EvaluateVocalRemovalApplicability();
+
             _isProcessing = true;
             _latencyTimer.Enabled = true;
 
@@ -350,6 +408,28 @@ public sealed class AudioProcessingService : IDisposable
         {
             _pipeline.PitchSemiTones = _currentPitch;
             OnStatusChanged($"Pitch changed to {_currentPitch:+0.0;-0.0;0.0} semitones.");
+        }
+    }
+
+    /// <summary>
+    /// Validates the vocal-removal preference against the actual capture source
+    /// channel count. Vocal removal via (L−R) cancellation only works on stereo
+    /// sources; if the source is mono we disable the feature, surface a status
+    /// message, and mark it non-applicable so the UI disables the switch.
+    /// </summary>
+    private void EvaluateVocalRemovalApplicability()
+    {
+        int channels = _pipeline?.CaptureFormat?.Channels ?? 2;
+        bool applicable = channels == 2;
+        VocalRemovalApplicable = applicable;
+
+        if (_vocalRemovalEnabled && !applicable)
+        {
+            // Mono source: (L−R) would cancel everything to silence. Disable and inform.
+            _vocalRemovalEnabled = false;
+            _pipeline!.VocalRemovalEnabled = false;
+            OnPropertyChanged(nameof(VocalRemovalEnabled)); // ask the VM to uncheck
+            OnStatusChanged("消除人声需要立体声音源，当前为单声道，已跳过");
         }
     }
 
@@ -466,6 +546,7 @@ public sealed class AudioProcessingService : IDisposable
     {
         _latencyTimer.Enabled = false;
         _isProcessing = false;
+        VocalRemovalApplicable = true; // re-evaluate on next start
 
         if (_pipeline != null)
         {
